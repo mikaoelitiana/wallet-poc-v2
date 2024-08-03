@@ -1,11 +1,10 @@
-import { LatestPost } from "~/app/_components/post";
 import { api, HydrateClient } from "~/trpc/server";
 import { Transactions } from "./_components/transaction";
 
 export default async function Home() {
   const hello = await api.post.hello({ text: "from tRPC" });
+  await new Promise((resolve) => setTimeout(resolve, 100));
 
-  void api.post.getLatest.prefetch();
   void api.transaction.getTransactions.prefetch();
 
   return (
@@ -21,7 +20,6 @@ export default async function Home() {
             </p>
           </div>
 
-          <LatestPost />
           <Transactions />
         </div>
       </main>

@@ -20,9 +20,6 @@ export function Transactions() {
   const createTransaction = api.transaction.create.useMutation({
     onSuccess: async () => {
       await utils.transaction.invalidate();
-      setAmount("100");
-      setCurrency("EUR");
-      setSource("CFAR");
     },
   });
   const withdraw = api.transaction.withdraw.useMutation({

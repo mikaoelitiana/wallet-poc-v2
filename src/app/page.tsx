@@ -2,7 +2,7 @@ import { api, HydrateClient } from "~/trpc/server";
 import { Transactions } from "./_components/transaction";
 
 export default async function Home() {
-  const hello = await api.post.hello({ text: "from tRPC" });
+  await api.post.hello({ text: "" });
   // await new Promise((resolve) => setTimeout(resolve, 100));
   // await api.transaction.getTransactions.prefetch();
 

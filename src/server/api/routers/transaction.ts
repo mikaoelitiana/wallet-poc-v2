@@ -10,6 +10,10 @@ import { env } from "~/env";
 const freecurrencyapi = new FreeCurrencyAPI(env.FREEEXCHANGERATE_API_KEY);
 
 export const transactionRouter = createTRPCRouter({
+  ping: publicProcedure.query(({}) => {
+    return {};
+  }),
+
   create: publicProcedure
     .input(
       z.object({

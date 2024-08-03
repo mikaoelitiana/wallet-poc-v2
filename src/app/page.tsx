@@ -19,8 +19,6 @@ export default async function Home() {
               {hello ? hello.greeting : "Loading tRPC query..."}
             </p>
           </div>
-
-          <Transactions />
         </div>
       </main>
     </HydrateClient>

@@ -18,3 +18,28 @@ model Post {
 
     @@index([name])
 }
+
+model Transaction {
+  id                  Int             @id @default(autoincrement())
+  createdAt           DateTime        @default(now())
+  updatedAt           DateTime        @updatedAt
+  type                TransactionType
+  amount              Int
+  currency            Currency
+  expiryAt            DateTime?
+  usedAt              DateTime?
+  source              String
+  sourceTransactionId Int?
+}
+
+enum TransactionType {
+  DEPOSIT
+  WITHDRAW
+  REMAINDER
+}
+
+enum Currency {
+  USD
+  EUR
+  GBP
+}

@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unsafe-member-access */
 import { z } from "zod";
 import { DateTime } from "luxon";
 // @ts-expect-error no types provided for the library

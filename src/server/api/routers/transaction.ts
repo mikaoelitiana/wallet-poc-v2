@@ -19,7 +19,7 @@ export const transactionRouter = createTRPCRouter({
       z.object({
         amount: z.number().min(1),
         source: z.string(),
-        type: z.enum(["DEPOSIT", "WITHDRAW", "REMAINDER"]),
+        type: z.enum(["DEPOSIT"]),
         currency: z.enum(["USD", "EUR", "GBP"]),
       }),
     )
@@ -58,11 +58,6 @@ export const transactionRouter = createTRPCRouter({
         where: {
           AND: [
             { OR: [{ expiryAt: null }, { expiryAt: { gte: new Date() } }] },
-            {
-              usedAt: null,
-              type: { not: "WITHDRAW" },
-            },
-            { OR: [{ sourceTransactionId: null }, { type: "REMAINDER" }] },
           ],
         },
       });
@@ -196,11 +191,6 @@ export const transactionRouter = createTRPCRouter({
         where: {
           AND: [
             { OR: [{ expiryAt: null }, { expiryAt: { gte: new Date() } }] },
-            {
-              usedAt: null,
-              type: { not: "WITHDRAW" },
-            },
-            { OR: [{ sourceTransactionId: null }, { type: "REMAINDER" }] },
           ],
         },
       });

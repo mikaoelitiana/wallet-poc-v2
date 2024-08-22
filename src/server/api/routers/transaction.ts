@@ -102,14 +102,14 @@ UNION ALL SELECT 'LOYALTY' as source, 2 as priority
 UNION ALL SELECT 'CX' as source, 3 as priority
 )
 , balances AS (
-SELECT id, currency, amount, prio.priority
+SELECT id, currency, amount, prio.priority, t."expiryAt"
 FROM "Transaction" t 
 JOIN prio ON prio.source = t.source
 WHERE type = 'DEPOSIT'
 
 UNION ALL
 
-SELECT "sourceTransactionId" as id, currency, amount, prio.priority
+SELECT "sourceTransactionId" as id, currency, amount, prio.priority, t."expiryAt"
 FROM "Transaction" t
 JOIN prio ON prio.source = t.source
 WHERE type = 'WITHDRAW'
@@ -120,11 +120,11 @@ FROM balances
 GROUP BY 1,2
 )
 
-SELECT tr.id, tr.currency, br.remainder, tr.source, prio.priority
+SELECT tr.id, tr.currency, br.remainder, tr.source, prio.priority, tr."expiryAt" as "expiryAt" 
 FROM balances_remaining br
 JOIN "Transaction" tr ON tr.id = br.id
 JOIN prio ON prio.source = tr.source
-WHERE br.remainder > 0
+WHERE br.remainder > 0 and ("expiryAt" >= NOW() or "expiryAt" is null)
 ORDER by prio.priority ASC`;
 
       let total = input.amount * 100;
@@ -186,14 +186,44 @@ ORDER by prio.priority ASC`;
         currencies: "USD,EUR,GBP",
       });
 
-      const transactions = await ctx.db.transaction.findMany({
-        orderBy: [{ createdAt: "asc" }, { expiryAt: "asc" }],
-        where: {
-          AND: [
-            { OR: [{ expiryAt: null }, { expiryAt: { gte: new Date() } }] },
-          ],
-        },
-      });
+      const transactions = await ctx.db.$queryRaw<
+        {
+          id: number;
+          remainder: number;
+          currency: "USD" | "EUR" | "GBP";
+          source: string;
+          priority: number;
+        }[]
+      >`WITH prio AS (
+SELECT 'CFAR' as source, 1 as priority
+UNION ALL SELECT 'LOYALTY' as source, 2 as priority
+UNION ALL SELECT 'CX' as source, 3 as priority
+)
+, balances AS (
+SELECT id, currency, amount, prio.priority, t."expiryAt"
+FROM "Transaction" t 
+JOIN prio ON prio.source = t.source
+WHERE type = 'DEPOSIT'
+
+UNION ALL
+
+SELECT "sourceTransactionId" as id, currency, amount, prio.priority, t."expiryAt"
+FROM "Transaction" t
+JOIN prio ON prio.source = t.source
+WHERE type = 'WITHDRAW'
+)
+, balances_remaining AS (
+SELECT id, currency, SUM(amount) as remainder
+FROM balances
+GROUP BY 1,2
+)
+
+SELECT tr.id, tr.currency, br.remainder, tr.source, prio.priority, tr."expiryAt" as "expiryAt" 
+FROM balances_remaining br
+JOIN "Transaction" tr ON tr.id = br.id
+JOIN prio ON prio.source = tr.source
+WHERE br.remainder > 0 and ("expiryAt" >= NOW() or "expiryAt" is null)
+ORDER by prio.priority ASC`;
 
       return (
         transactions.reduce(
@@ -201,7 +231,9 @@ ORDER by prio.priority ASC`;
             (acc =
               acc +
               // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-              Math.round(curr.amount / (rates.data?.[curr.currency] ?? 1)) /
+              Math.round(
+                Number(curr.remainder) / (rates.data?.[curr.currency] ?? 1),
+              ) /
                 100),
           0,
         ) ?? null

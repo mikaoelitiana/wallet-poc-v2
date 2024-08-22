@@ -29,6 +29,7 @@ model Transaction {
   expiryAt            DateTime?
   source              String
   sourceTransactionId Int?
+  description         String?
 }
 
 enum TransactionType {

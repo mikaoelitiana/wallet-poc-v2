@@ -87,73 +87,68 @@ export const transactionRouter = createTRPCRouter({
         currencies: "USD,EUR,GBP",
       });
 
-      const transactions = await ctx.db.transaction.findMany({
-        orderBy: [{ expiryAt: "asc" }, { createdAt: "asc" }],
-        where: {
-          AND: [
-            { OR: [{ expiryAt: null }, { expiryAt: { gte: new Date() } }] },
-            {
-              usedAt: null,
-              type: { not: "WITHDRAW" },
-            },
-            { OR: [{ sourceTransactionId: null }, { type: "REMAINDER" }] },
-          ],
-        },
-      });
+      const usable_deposit_transactions = await ctx.db.$queryRaw<
+        {
+          id: number;
+          remainder: number;
+          currency: "USD" | "EUR" | "GBP";
+          source: string;
+          priority: number;
+        }[]
+      >`WITH prio AS (
+SELECT 'CFAR' as source, 1 as priority
+UNION ALL SELECT 'LOYALTY' as source, 2 as priority
+UNION ALL SELECT 'CX' as source, 3 as priority
+)
+, balances AS (
+SELECT id, currency, amount, prio.priority
+FROM "Transaction" t 
+JOIN prio ON prio.source = t.source
+WHERE type = 'DEPOSIT'
+
+UNION ALL
+
+SELECT "sourceTransactionId" as id, currency, amount, prio.priority
+FROM "Transaction" t
+JOIN prio ON prio.source = t.source
+WHERE type = 'WITHDRAW'
+)
+, balances_remaining AS (
+SELECT id, currency, SUM(amount) as remainder
+FROM balances
+GROUP BY 1,2
+)
+
+SELECT tr.id, tr.currency, br.remainder, tr.source, prio.priority
+FROM balances_remaining br
+JOIN "Transaction" tr ON tr.id = br.id
+JOIN prio ON prio.source = tr.source
+order by prio.priority ASC`;
 
       let total = input.amount * 100;
 
-      for (const transaction of transactions) {
+      for (const transaction of usable_deposit_transactions) {
         // all paid
         if (total <= 0) break;
 
         const amount = Math.min(
-          total,
           Math.round(
             // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-            (transaction.amount / rates.data[transaction.currency]) * 100,
+            total * rates.data[transaction.currency] * 100,
           ) / 100,
+          Math.round(Number(transaction.remainder) * 100) / 100,
         );
-
-        // Mark transaction as used
-        await ctx.db.transaction.update({
-          where: { id: transaction.id },
-          data: {
-            usedAt: new Date(),
-          },
-        });
 
         // Create a new transaction for the withdrawal
         await ctx.db.transaction.create({
           data: {
             amount: -amount,
-            currency: input.currency,
+            currency: transaction.currency,
             type: "WITHDRAW",
             sourceTransactionId: transaction.id,
             source: transaction.source,
-            usedAt: new Date(),
           },
         });
-
-        // Create a new transaction for the remainder if any
-        if (amount < transaction.amount) {
-          await ctx.db.transaction.create({
-            data: {
-              amount:
-                Math.round(
-                  (transaction.amount -
-                    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-                    amount * rates.data[transaction.currency]) *
-                    100,
-                ) / 100,
-              currency: transaction.currency,
-              type: "REMAINDER",
-              source: transaction.source,
-              sourceTransactionId: transaction.id,
-              expiryAt: transaction.expiryAt,
-            },
-          });
-        }
 
         total -= amount;
       }
@@ -162,7 +157,7 @@ export const transactionRouter = createTRPCRouter({
   getTransactions: publicProcedure.query(async ({ ctx }) => {
     try {
       const transactions = await ctx.db.transaction.findMany({
-        orderBy: { createdAt: "desc" },
+        orderBy: { id: "desc" },
       });
 
       return (

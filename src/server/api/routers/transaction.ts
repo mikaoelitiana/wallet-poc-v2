@@ -78,6 +78,7 @@ export const transactionRouter = createTRPCRouter({
       z.object({
         amount: z.number().min(1),
         currency: z.enum(["USD", "EUR", "GBP"]),
+        description: z.string().optional(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
@@ -123,7 +124,8 @@ SELECT tr.id, tr.currency, br.remainder, tr.source, prio.priority
 FROM balances_remaining br
 JOIN "Transaction" tr ON tr.id = br.id
 JOIN prio ON prio.source = tr.source
-order by prio.priority ASC`;
+WHERE br.remainder > 0
+ORDER by prio.priority ASC`;
 
       let total = input.amount * 100;
 
@@ -147,6 +149,9 @@ order by prio.priority ASC`;
             type: "WITHDRAW",
             sourceTransactionId: transaction.id,
             source: transaction.source,
+            description:
+              input.description ??
+              `Withdrawing ${input.currency} ${input.amount}`,
           },
         });
 

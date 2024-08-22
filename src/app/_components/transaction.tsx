@@ -16,6 +16,7 @@ export function Transactions() {
 
   const [amount, setAmount] = useState("100");
   const [withdrawAmount, setWithdrawAmount] = useState("100");
+  const [withdrawDescription, setWithdrawDescription] = useState("");
   const [source, setSource] = useState("CFAR");
   const createTransaction = api.transaction.create.useMutation({
     onSuccess: async () => {
@@ -117,6 +118,7 @@ export function Transactions() {
               withdraw.mutate({
                 amount: parseFloat(withdrawAmount),
                 currency,
+                description: withdrawDescription,
               });
             }}
             className="flex flex-col gap-2"
@@ -130,6 +132,16 @@ export function Transactions() {
                 className="block w-full rounded-e-full px-4 py-2 pe-11 text-sm text-black focus:z-10 focus:border-blue-500 focus:ring-blue-500 disabled:pointer-events-none disabled:opacity-50"
                 value={withdrawAmount}
                 onChange={(e) => setWithdrawAmount(e.target.value)}
+              />
+            </div>
+
+            <div className="inline-flex min-w-fit items-center">
+              <input
+                type="text"
+                placeholder="Description"
+                className="block w-full rounded-full px-4 py-2 text-sm text-black focus:z-10 focus:border-blue-500 focus:ring-blue-500 disabled:pointer-events-none disabled:opacity-50"
+                value={withdrawDescription}
+                onChange={(e) => setWithdrawDescription(e.target.value)}
               />
             </div>
 
@@ -182,6 +194,12 @@ export function Transactions() {
                 scope="col"
                 className="px-6 py-3 text-start text-xs font-medium uppercase"
               >
+                Description
+              </th>
+              <th
+                scope="col"
+                className="px-6 py-3 text-start text-xs font-medium uppercase"
+              >
                 Expiration
               </th>
             </tr>
@@ -204,6 +222,9 @@ export function Transactions() {
                   </td>
                   <td className="whitespace-nowrap px-6 py-4 text-sm font-medium">
                     {transaction.source}
+                  </td>
+                  <td className="whitespace-nowrap px-6 py-4 text-sm font-medium">
+                    {transaction.description}
                   </td>
                   <td className="whitespace-nowrap px-6 py-4 text-sm font-medium">
                     {transaction.expiryAt
